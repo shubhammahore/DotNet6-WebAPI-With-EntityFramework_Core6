@@ -76,43 +76,50 @@ namespace PoReleaseApi.Controllers
 
 
         [HttpPost("UploadFile")]
-        public IActionResult UploadFile()
+        public async Task<IActionResult> UploadFile([FromForm] PoReleaseRequest poReleaseRequest)
         {
-            
+            List<string> fileList = new List<string>();
             
             try
             {
                 // 1. get the file form the request
-                var postedFile = Request.Form.Files[0];
+                //var postedFile = Request.Form.Files[0];
+                //var file1 = poReleaseRequest.files[0];
+                long size = poReleaseRequest.files.Sum(f => f.Length);
 
-                // 2. set the file uploaded folder
-                var uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "UploadedFiles");
-                // 3. check for the file length, if it is more than 0 the save it
-                if (postedFile.Length > 0)
+                // Full path to file in temp location
+                //var filePath = Path.GetTempFileName();
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "UploadedFiles");
+                foreach (var formFile in poReleaseRequest.files)
                 {
-                    // 3a. read the file name of the received file
-                    var fileName = ContentDispositionHeaderValue.Parse(postedFile.ContentDisposition)
-                        .FileName.Trim('"');
-                    // 3b. save the file on Path
-                    var finalPath = Path.Combine(uploadFolder, fileName);
-                    using(var fileStream = new FileStream(finalPath, FileMode.Create))
+                    if (formFile.Length > 0)
                     {
-                        postedFile.CopyTo(fileStream);
+                        fileList.Add(formFile.FileName);
+                        //using (var stream = new FileStream(filePath, FileMode.Create))
+                        //    await formFile.CopyToAsync(stream);
+                        //using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        //{
+                        //    formFile.CopyTo(fileStream);
+                        //}
+                        // 3a. read the file name of the received file
+                        var fileName = ContentDispositionHeaderValue.Parse(formFile.ContentDisposition)
+                            .FileName.Trim('"');
+                        Guid guid = new Guid(fileName);
+                        // 3b. save the file on Path
+                        var finalPath = Path.Combine(filePath, fileName);
+                        using (var fileStream = new FileStream(finalPath, FileMode.Create))
+                        {
+                            formFile.CopyTo(fileStream);
+                        }
+                    }
+                    else
+                    {
+                        return BadRequest("The File is not received.");
                     }
 
-                    var responseContent = new UploadResult
-                    {
-                        fileName = fileName,
-                        uploadedPath = finalPath
-                    }; 
-
-                    return Ok(responseContent);
-                }
-                else
-                {
-                    return BadRequest("The File is not received.");
                 }
 
+               return Ok(fileList);
             }
             catch (Exception ex)
             {
